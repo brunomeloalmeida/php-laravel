@@ -1,73 +1,67 @@
 version: "3.7"
 
 services:
-    # image project
-    app:
-        container_name: especializati-laravel
-        build:
-            context: .
-            dockerfile: Dockerfile
-        image: especializati/laravel-app
-        restart: unless-stopped
-        working_dir: /var/www/
-        volumes:
-            - ./:/var/www
-        depends_on: 
-            - redis
-        networks: 
-            - laravel
-    
-    # nginx
-    nginx:
-        container_name: especializati-nginx
-        image: nginx:alpine
-        restart: unless-stopped
-        ports: 
-            - "8989:80"
-        volumes: 
-            - ./:/var/www
-            - ./docker/nginx/:/etc/nginx/conf.d/
-        networks: 
-            - laravel
+  # nginx:
+  #   container_name: nginx
+  #   image: nginx:stable-alpine
+  #   restart: unless-stopped
+  #   ports: 
+  #     - "8989:80"
+  #   volumes: 
+  #     - ./src:/var/www/html
+  #     - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+  #   depends_on:
+  #     - php
+  #     - mysql
+  #   networks: 
+  #     - laravel
 
-    # db mysql
-    mysql:
-        container_name: especializati-mysql
-        image: mysql:5.7.22
-        restart: unless-stopped
-        environment: 
-            MYSQL_DATABASE: ${DB_DATABASE}
-            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-            MYSQL_PASSWORD: ${DB_PASSWORD}
-            MYSQL_USER: ${DB_USERNAME}
-        volumes: 
-            - ./.docker/mysql/dbdata:/var/lib/mysql
-        ports: 
-            - "3388:3306"
-        networks: 
-            - laravel
+  mysql:
+    container_name: mysql
+    image: mysql:5.7.22
+    restart: unless-stopped
+    tty: true
+    environment: 
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+    volumes: 
+      - ./docker/mysql:/var/lib/mysql
+    ports: 
+      - "3306:3306"
+    networks: 
+      - laravel
 
-    # queue
-    queue:
-        container_name: especializati-queue
-        image: especializati/laravel-app
-        restart: unless-stopped
-        command: "php artisan queue:work"
-        volumes: 
-            - ./:/var/www
-        depends_on: 
-            - redis
-            - app
-        networks: 
-            - laravel
+  php:
+    container_name: php
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./src/.env
+    volumes:
+      - ./src:/var/www/html
+    ports:
+      - "8000:8000"
+    networks: 
+      - laravel
 
-    # redis
-    redis:
-        container_name: especializati-redis
-        image: redis:latest
-        networks: 
-            - laravel
+  phpmyadmin:
+    container_name: phpmyadmin
+    depends_on:
+      - mysql
+    image: phpmyadmin
+    restart: unless-stopped
+    links:
+      - mysql
+    ports: 
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    networks: 
+      - laravel
 
 networks: 
-    laravel:
-        driver: bridge
+  laravel:
